@@ -1,90 +1,102 @@
 var models = require("../models");
 var Sequelize = require('sequelize');
+var score = 0;
 
 var paginate = require('../helpers/paginate').paginate;
 
 // Autoload el quiz asociado a :quizId
-exports.load = function (req, res, next, quizId) {
+exports.load = function(req, res, next, quizId) {
 
     models.Quiz.findById(quizId)
-    .then(function (quiz) {
-        if (quiz) {
-            req.quiz = quiz;
-            next();
-        } else {
-            throw new Error('No existe ningún quiz con id=' + quizId);
-        }
-    })
-    .catch(function (error) {
-        next(error);
-    });
+        .then(function(quiz) {
+            if (quiz) {
+                req.quiz = quiz;
+                next();
+            } else {
+                throw new Error('No existe ningún quiz con id=' + quizId);
+            }
+        })
+        .catch(function(error) {
+            next(error);
+        });
 };
 
 
 // GET /quizzes
-exports.index = function (req, res, next) {
+exports.index = function(req, res, next) {
 
     var countOptions = {};
 
     // Busquedas:
     var search = req.query.search || '';
     if (search) {
-        var search_like = "%" + search.replace(/ +/g,"%") + "%";
+        var search_like = "%" + search.replace(/ +/g, "%") + "%";
 
-        countOptions.where = {question: { $like: search_like }};
+        countOptions.where = {
+            question: {
+                $like: search_like
+            }
+        };
     }
 
     models.Quiz.count(countOptions)
-    .then(function (count) {
+        .then(function(count) {
 
-        // Paginacion:
+            // Paginacion:
 
-        var items_per_page = 10;
+            var items_per_page = 10;
 
-        // La pagina a mostrar viene en la query
-        var pageno = parseInt(req.query.pageno) || 1;
+            // La pagina a mostrar viene en la query
+            var pageno = parseInt(req.query.pageno) || 1;
 
-        // Crear un string con el HTML que pinta la botonera de paginacion.
-        // Lo añado como una variable local de res para que lo pinte el layout de la aplicacion.
-        res.locals.paginate_control = paginate(count, items_per_page, pageno, req.url);
+            // Crear un string con el HTML que pinta la botonera de paginacion.
+            // Lo añado como una variable local de res para que lo pinte el layout de la aplicacion.
+            res.locals.paginate_control = paginate(count, items_per_page, pageno, req.url);
 
-        var findOptions = countOptions;
+            var findOptions = countOptions;
 
-        findOptions.offset = items_per_page * (pageno - 1);
-        findOptions.limit = items_per_page;
+            findOptions.offset = items_per_page * (pageno - 1);
+            findOptions.limit = items_per_page;
 
-        return models.Quiz.findAll(findOptions);
-    })
-    .then(function (quizzes) {
-        res.render('quizzes/index.ejs', {
-            quizzes: quizzes,
-            search: search
+            return models.Quiz.findAll(findOptions);
+        })
+        .then(function(quizzes) {
+            res.render('quizzes/index.ejs', {
+                quizzes: quizzes,
+                search: search
+            });
+        })
+        .catch(function(error) {
+            next(error);
         });
-    })
-    .catch(function (error) {
-        next(error);
-    });
 };
 
 
 // GET /quizzes/:quizId
-exports.show = function (req, res, next) {
+exports.show = function(req, res, next) {
 
-    res.render('quizzes/show', {quiz: req.quiz});
+    res.render('quizzes/show', {
+        quiz: req.quiz
+    });
 };
 
 
 // GET /quizzes/new
-exports.new = function (req, res, next) {
+exports.new = function(req, res, next) {
 
-    var quiz = {question: "", answer: ""};
+    var quiz = {
+        question: "",
+        answer: ""
+    };
 
-    res.render('quizzes/new', {quiz: quiz});
+    res.render('quizzes/new', {
+        quiz: quiz
+    });
 };
 
 
 // POST /quizzes/create
-exports.create = function (req, res, next) {
+exports.create = function(req, res, next) {
 
     var quiz = models.Quiz.build({
         question: req.body.question,
@@ -92,78 +104,88 @@ exports.create = function (req, res, next) {
     });
 
     // guarda en DB los campos pregunta y respuesta de quiz
-    quiz.save({fields: ["question", "answer"]})
-    .then(function (quiz) {
-        req.flash('success', 'Quiz creado con éxito.');
-        res.redirect('/quizzes/' + quiz.id);
-    })
-    .catch(Sequelize.ValidationError, function (error) {
+    quiz.save({
+            fields: ["question", "answer"]
+        })
+        .then(function(quiz) {
+            req.flash('success', 'Quiz creado con éxito.');
+            res.redirect('/quizzes/' + quiz.id);
+        })
+        .catch(Sequelize.ValidationError, function(error) {
 
-        req.flash('error', 'Errores en el formulario:');
-        for (var i in error.errors) {
-            req.flash('error', error.errors[i].value);
-        }
+            req.flash('error', 'Errores en el formulario:');
+            for (var i in error.errors) {
+                req.flash('error', error.errors[i].value);
+            }
 
-        res.render('quizzes/new', {quiz: quiz});
-    })
-    .catch(function (error) {
-        req.flash('error', 'Error al crear un Quiz: ' + error.message);
-        next(error);
-    });
+            res.render('quizzes/new', {
+                quiz: quiz
+            });
+        })
+        .catch(function(error) {
+            req.flash('error', 'Error al crear un Quiz: ' + error.message);
+            next(error);
+        });
 };
 
 
 // GET /quizzes/:quizId/edit
-exports.edit = function (req, res, next) {
+exports.edit = function(req, res, next) {
 
-    res.render('quizzes/edit', {quiz: req.quiz});
+    res.render('quizzes/edit', {
+        quiz: req.quiz
+    });
 };
 
 
 // PUT /quizzes/:quizId
-exports.update = function (req, res, next) {
+exports.update = function(req, res, next) {
 
     req.quiz.question = req.body.question;
     req.quiz.answer = req.body.answer;
 
-    req.quiz.save({fields: ["question", "answer"]})
-    .then(function (quiz) {
-        req.flash('success', 'Quiz editado con éxito.');
-        res.redirect('/quizzes/' + req.quiz.id);
-    })
-    .catch(Sequelize.ValidationError, function (error) {
+    req.quiz.save({
+            fields: ["question", "answer"]
+        })
+        .then(function(quiz) {
+            req.flash('success', 'Quiz editado con éxito.');
+            res.redirect('/quizzes/' + req.quiz.id);
+        })
+        .catch(Sequelize.ValidationError, function(error) {
 
-        req.flash('error', 'Errores en el formulario:');
-        for (var i in error.errors) {
-            req.flash('error', error.errors[i].value);
-        }
+            req.flash('error', 'Errores en el formulario:');
+            for (var i in error.errors) {
+                req.flash('error', error.errors[i].value);
+            }
 
-        res.render('quizzes/edit', {quiz: req.quiz});
-    })
-    .catch(function (error) {
-        req.flash('error', 'Error al editar el Quiz: ' + error.message);
-        next(error);
-    });
+            res.render('quizzes/edit', {
+                quiz: req.quiz
+            });
+        })
+        .catch(function(error) {
+            req.flash('error', 'Error al editar el Quiz: ' + error.message);
+            next(error);
+        });
 };
 
 
 // DELETE /quizzes/:quizId
-exports.destroy = function (req, res, next) {
+exports.destroy = function(req, res, next) {
 
     req.quiz.destroy()
-    .then(function () {
-        req.flash('success', 'Quiz borrado con éxito.');
-        res.redirect('/quizzes');
-    })
-    .catch(function (error) {
-        req.flash('error', 'Error al editar el Quiz: ' + error.message);
-        next(error);
-    });
+        .then(function() {
+            req.flash('success', 'Quiz borrado con éxito.');
+            res.redirect('/quizzes');
+        })
+        .catch(function(error) {
+            req.flash('error', 'Error al editar el Quiz: ' + error.message);
+            next(error);
+        });
 };
 
 
 // GET /quizzes/:quizId/play
-exports.play = function (req, res, next) {
+exports.play = function(req, res, next) {
 
     var answer = req.query.answer || '';
 
@@ -174,14 +196,102 @@ exports.play = function (req, res, next) {
 };
 
 
+
+
+
+
+// GET /quizzes/random_play
+exports.randomplay = function(req, res, next) {
+
+
+    models.Quiz.findAll()
+        .then(function(quizzes) {
+            var played = req.session.played || [];
+
+            if (played.length === 0) {
+                score = 0;
+            }
+
+            var quizId = 1;
+
+            do {
+                quizId = Math.ceil(quizzes.length * Math.random());
+            } while ((played.indexOf(quizId) > -1) && !(played.length === quizzes.length));
+
+
+            if (played.length === quizzes.length) {
+                models.Quiz.findById(quizId)
+                    .then(function(quiz) {
+                        //req.session.played = JSON.stringify(quizId);
+                        score = score;
+
+                        req.session.played = [];
+
+                        var answer = req.query.answer || '';
+
+
+                        res.render('quizzes/random_nomore', {
+                            score: score,
+                            quiz: quiz,
+                            answer: answer
+                        });
+                    });
+
+            }
+
+            models.Quiz.findById(quizId)
+                .then(function(quiz) {
+                    req.session.played = played;
+                    score = score;
+
+                    var answer = req.query.answer || '';
+
+                    res.render('quizzes/randomplay', {
+                        score: score,
+                        quiz: quiz,
+                        answer: answer
+                    });
+
+                });
+        });
+};
+
+
+
 // GET /quizzes/:quizId/check
-exports.check = function (req, res, next) {
+exports.check = function(req, res, next) {
 
     var answer = req.query.answer || "";
 
     var result = answer.toLowerCase().trim() === req.quiz.answer.toLowerCase().trim();
 
     res.render('quizzes/result', {
+        quiz: req.quiz,
+        result: result,
+        answer: answer
+    });
+};
+
+// GET /quizzes/:quizId/randomcheck
+exports.randomcheck = function(req, res, next) {
+
+    score = score;
+
+    req.session.played.push(req.quiz.id);
+
+    var answer = req.query.answer || "";
+
+    var result = answer.toLowerCase().trim() === req.quiz.answer.toLowerCase().trim();
+
+    if (result === true) {
+        score = score + 1;
+    } else {
+        score = 0;
+        req.session.played = [];
+    }
+
+    res.render('quizzes/random_result', {
+        score: score,
         quiz: req.quiz,
         result: result,
         answer: answer
