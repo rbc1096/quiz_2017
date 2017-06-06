@@ -4,16 +4,21 @@ var score = 0;
 
 var paginate = require('../helpers/paginate').paginate;
 
+
 // Autoload el quiz asociado a :quizId
 exports.load = function(req, res, next, quizId) {
 
     models.Quiz.findById(quizId, {
-            include: [
-                models.Tip, {
+            include: [{
+                model: models.Tip,
+                include: [{
                     model: models.User,
                     as: 'Author'
-                }
-            ]
+                }]
+            }, {
+                model: models.User,
+                as: 'Author'
+            }]
         })
         .then(function(quiz) {
             if (quiz) {
@@ -26,8 +31,6 @@ exports.load = function(req, res, next, quizId) {
         .catch(function(error) {
             next(error);
         });
-
-
 };
 
 
